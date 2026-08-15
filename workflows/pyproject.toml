@@ -9,4 +9,6 @@ dependencies = [
 
 [dependency-groups]
 # Add whatever you need — an HTTP client, a PDF parser, a Postgres driver.
-dev = []
+dev = [
+    "httpx"
+]
