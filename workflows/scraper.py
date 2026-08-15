@@ -50,6 +50,7 @@ class FileOutput(BaseModel):
     path: str
     bytes: int
     fetched_at: str
+    json_obj_count: int = 0
 
 
 class MetadataOutput(BaseModel):
@@ -79,12 +80,20 @@ def _download(ctx: Context, url: str, filename: str) -> FileOutput:
     os.replace(tmp, path)
 
     ctx.log(f"wrote {filename} ({len(payload)} bytes)")
+
+    if path.suffix == ".json":
+        data = json.loads(path.read_text())
+        json_obj_count = len(data)
+    else:
+        json_obj_count = 0
+    
     return FileOutput(
         filename=filename,
         url=url,
         path=str(path),
         bytes=len(payload),
         fetched_at=datetime.now(timezone.utc).isoformat(),
+        json_obj_count=json_obj_count,
     )
 
 @scrape_workflow.task(
@@ -187,6 +196,7 @@ def metadata(input: ScrapeInput, ctx: Context) -> MetadataOutput:
                 "path": s.path,
                 "bytes": s.bytes,
                 "fetched_at": s.fetched_at,
+                "json_obj_count": s.json_obj_count
             }
             for s in sources
         ],
