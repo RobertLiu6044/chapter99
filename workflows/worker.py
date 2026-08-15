@@ -8,13 +8,15 @@ write needs to be imported and listed here, or the engine will accept a run and
 then hang forever waiting for someone to pick it up.
 """
 
+from client import hatchet
+from parse_hts import parse_workflow
 from scraper import scrape_workflow
 
 
 def main() -> None:
     worker = hatchet.worker(
         "chp99-worker",
-        workflows=[scrape_workflow],
+        workflows=[scrape_workflow, parse_workflow],
     )
     worker.start()
 

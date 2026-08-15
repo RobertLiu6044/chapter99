@@ -15,6 +15,10 @@
 
 BEGIN;
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+DROP TABLE IF EXISTS special_rule CASCADE;
+DROP TABLE IF EXISTS special_base CASCADE;
 DROP TABLE IF EXISTS special CASCADE;
 DROP TABLE IF EXISTS rule_edge CASCADE;
 DROP TABLE IF EXISTS rule CASCADE;
@@ -44,6 +48,7 @@ CREATE TYPE hts_code AS (
 CREATE TABLE hts_base (
   code          hts_code PRIMARY KEY,
   hts           text NOT NULL UNIQUE,
+  superior      boolean NOT NULL DEFAULT FALSE,
   description   text,
   mfn_rate      numeric,
   mfn_rate_unit text,
@@ -77,6 +82,7 @@ CREATE TABLE rule (
   rate_kind   text NOT NULL
     CHECK (rate_kind IN ('free','additive','ad_valorem','no_change','specific','other')),
   rate_value  numeric,
+  rate_unit   text,
   note_ref    text,
   CHECK (
     ((code).h1 = -1 AND (code).h2 = -1 AND (code).h3 = -1)
@@ -101,13 +107,20 @@ CREATE TABLE rule_edge (
 CREATE INDEX rule_edge_target_idx ON rule_edge (target_hts, edge_type);
 
 -- Special provisions
-CREATE TABLE special (
-  hts text NOT NULL REFERENCES rule(hts) ON DELETE CASCADE,
+CREATE TABLE special_base (
+  hts_code hts_code NOT NULL REFERENCES hts_base(code) ON DELETE CASCADE,
   special_tag text NOT NULL,
   special_rate numeric NOT NULL,
-  PRIMARY KEY (hts, special_tag)
+  special_rate_unit text NOT NULL, 
+  PRIMARY KEY (hts_code, special_tag, special_rate_unit)
 );
 
-CREATE INDEX special_hts_idx ON special (hts);
+CREATE TABLE special_rule (
+  rule_code hts_code NOT NULL REFERENCES rule(code) ON DELETE CASCADE,
+  special_tag text NOT NULL,
+  special_rate numeric NOT NULL,
+  special_rate_unit text NOT NULL, 
+  PRIMARY KEY (rule_code, special_tag, special_rate, special_rate_unit)
+);
 
 COMMIT;

@@ -14,7 +14,7 @@ import httpx
 from hatchet_sdk import Context
 from pydantic import BaseModel
 
-from echo import hatchet
+from client import hatchet
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
