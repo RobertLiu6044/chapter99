@@ -87,9 +87,24 @@ def _download(ctx: Context, url: str, filename: str) -> FileOutput:
         fetched_at=datetime.now(timezone.utc).isoformat(),
     )
 
+@scrape_workflow.task(
+    execution_timeout=timedelta(minutes=2),
+    retries=3,
+    backoff_factor=2,
+    backoff_max_seconds=30,
+)
+def clean_data(input: ScrapeInput, ctx: Context) -> None:
+    # Cleans everything except .gitignore and .gitkeep
+    for path in DATA_DIR.glob("*"):
+        if path.is_dir() or path.name in [".gitignore", ".gitkeep"]:
+            continue
+        path.unlink()
+    ctx.log(f"cleaned data directory")
+    return None
 
 @scrape_workflow.task(
     execution_timeout=timedelta(minutes=2),
+    parents=[clean_data],
     retries=3,
     backoff_factor=2,
     backoff_max_seconds=30,
