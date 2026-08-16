@@ -39,7 +39,8 @@ if [ -z "$(docker compose ps -q 2>/dev/null)" ]; then
   check_port 5432 postgres || busy=1
   check_port 8080 "hatchet UI" || busy=1
   check_port 7077 "hatchet gRPC" || busy=1
-  check_port 3000 app || busy=1
+  check_port 3000 "app UI" || busy=1
+  check_port 8000 "app API" || busy=1
 
   if [ "$busy" -ne 0 ]; then
     echo >&2
@@ -48,7 +49,7 @@ if [ -z "$(docker compose ps -q 2>/dev/null)" ]; then
   fi
 fi
 
-echo "starting db, hatchet, worker, app -- Ctrl-C to stop"
+echo "starting db, hatchet, worker, api, web -- Ctrl-C to stop"
 echo
 
 # --watch implies up. Both profiles, so a plain ./dev.sh is the whole stack.
