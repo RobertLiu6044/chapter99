@@ -39,3 +39,9 @@ A FastAPI + React explorer: search the base schedule, then show parents/children
 ## 6. Where you used AI tools
 
 Cursor agent helped scaffold the FastAPI/React app, hierarchy queries, and Chapter 99 BFS. Graph layout and edge-matching against `hts_code` composites should be spot-checked against known lines (e.g. a 9902 “provided for in” chemical and a 9903 exclusion cluster).
+
+## 7. Where the agent succeeded and where it failed
+
+The Cursor agent was good at performing the task incrementally rather than one-shotting all 3 parts. The agent needed clear instructions to perform well. It succeeded at quickly generating code that can run, but failed to guarantee correctness. For example, in part 2, the agent generated the parsing logic based on the data. When inspecting the parsed rule references, most of the base case "provided for in subheading ..." were missing in `rule_edge`. I inspected the parsing function `extract_references()` and found the logic to be convoluted. I asked it to change the regex expression to use capturing group to target the hts base codes rather than capturing, string splitting, and more capturing.
+
+The agent also failed to uphold a high standard of code quality, with most of the helper functions missing in-line comments. The structure of the code is also very confusing to read. This is because of the time constraint I was under and the nature of the project being a quick prototype. In a production setting, I would manually design the function signatures, write inline comments to guide the agent where each function is called, and ask the agent to fill in each function. 
