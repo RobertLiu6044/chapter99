@@ -27,6 +27,7 @@ A FastAPI + React explorer: search the base schedule, then show parents/children
 - parse notes PDF into linkable note text
 - origin + program duty calculator with agent-assisted resolution. 
 - polish superior-row navigation.
+- more robust parsing logic for rule descriptions. Use LLM to generate parsed references and exclusions.
 
 ## 5. Assumptions
 
