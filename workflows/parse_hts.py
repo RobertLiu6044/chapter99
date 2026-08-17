@@ -220,7 +220,7 @@ def load_rules(input: ParseInput, ctx: Context) -> ParseSummary:
     edges: list[tuple] = []
     specials: list[tuple] = []
     seen_rules: set[str] = set()
-    seen_edges: set[tuple[str, str, str]] = set()
+    seen_edges: set[tuple[str, str, object]] = set()
     seen_special: set[tuple[str, str, str]] = set()
 
     for row in rows:
@@ -251,11 +251,8 @@ def load_rules(input: ParseInput, ctx: Context) -> ParseSummary:
             )
         )
 
-        for target in extract_references(description):
-            tcode = parse_hts_code(target)
-            if tcode is None:
-                continue
-            key = (hts, "references", target)
+        for tcode in extract_references(description):
+            key = (hts, "references", tcode)
             if key in seen_edges:
                 continue
             seen_edges.add(key)

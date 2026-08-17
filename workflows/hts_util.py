@@ -7,13 +7,29 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Iterator
 
-# 0101 | 0101.21 | 0101.21.00 | 0101.21.00.10
-HTS_TOKEN = re.compile(r"\b(\d{4}(?:\.\d{2}){0,3})\b")
+# 0101 | 0101.21 | 0101.21.00 | 0101.21.00.10, plus the statistical-reporting
+# spelling of a 10-digit line, which drops the last dot: 8716.39.0090.
+_CODE = r"\b(?:\d{4}\.\d{2}\.\d{4}|\d{4}(?:\.\d{2}){0,3})\b"
 
+HTS_TOKEN = re.compile(rf"({_CODE})")
+
+# Words the schedule puts between "provided" and the code it is pointing at:
+# "provided for in subheading X", "provided in heading X", "provided for in
+# statistical reporting number X", "provided for in under subheading X". Typos
+# in the source ("subnheading", "subheadling") are covered by \w*head\w*.
+_LEAD = (
+    r"(?:in\s+|for\s+|under\s+|HTS\s+|\w*head\w*\s+"
+    r"|statistical\s+reporting\s+numbers?\s+)*"
+)
+
+# Between codes: punctuation, "or"/"and", and any repeat of the lead-in words,
+# so "8716.39.0090, or in subheadings 8716.90.30 or 8716.90.50" stays one list.
+_JOIN = rf"[\s,;:.\u2013\u2014-]*(?:\bor\b|\band\b|\[or\])?[\s,;:]*{_LEAD}"
+
+# One capturing group: the whole list of codes being pointed at. A citation of a
+# note ("provided for in U.S. note 31") has no code here, so it captures nothing.
 PROVIDED_FOR = re.compile(
-    r"provided\s+for\s+in\s+(?:subheadings?|headings?)?\s*"
-    r"|provided\s+in\s+(?:subheadings?|headings?)?\s*"
-    r"|provided\s+for\s+(?:subheadings?|headings?)\s*",
+    rf"provided\s+{_LEAD}({_CODE}(?:{_JOIN}{_CODE})*)",
     re.IGNORECASE,
 )
 
@@ -49,9 +65,16 @@ SPECIAL_PCT = re.compile(
 
 
 def parse_hts_code(hts: str) -> tuple[int, int, int, int] | None:
-    """Turn '0101.21.00.10' into (101, 21, 0, 10). Missing segments → -1."""
+    """Turn '0101.21.00.10' into (101, 21, 0, 10). Missing segments → -1.
+
+    Also accepts the statistical-reporting spelling '8716.39.0090', where the
+    last two segments are run together.
+    """
     hts = (hts or "").strip()
-    if not hts or not re.fullmatch(r"\d{4}(?:\.\d{2}){0,3}", hts):
+    if re.fullmatch(r"\d{4}\.\d{2}\.\d{4}", hts):
+        head, sub, stat = hts.split(".")
+        return int(head), int(sub), int(stat[:2]), int(stat[2:])
+    if not re.fullmatch(r"\d{4}(?:\.\d{2}){0,3}", hts):
         return None
     parts = [int(p) for p in hts.split(".")]
     while len(parts) < 4:
@@ -76,22 +99,18 @@ def extract_hts_tokens(text: str) -> list[str]:
     return list(dict.fromkeys(HTS_TOKEN.findall(text or "")))
 
 
-def extract_references(description: str) -> list[str]:
-    """Base (or any) HTS codes named via 'provided for in …' style joins."""
-    text = description or ""
-    refs: list[str] = []
-    for m in PROVIDED_FOR.finditer(text):
-        # Take a short window after the cue and pull HTS tokens from it.
-        window = text[m.end() : m.end() + 120]
-        # Stop at a sentence break or parenthetical close when possible.
-        stop = re.search(r"[);]|\band\b(?!\s+\d)", window)
-        if stop and stop.start() > 0:
-            window = window[: stop.start()]
-        for tok in extract_hts_tokens(window):
-            # Prefer base-schedule references (chs 1–97) for 'references' edges,
-            # but keep whatever the prose named — rule_edge.target is not an FK.
-            if tok not in refs:
-                refs.append(tok)
+def extract_references(description: str) -> list[tuple[int, int, int, int]]:
+    """Codes a rule points at with 'provided for in <code>[, <code> …]'.
+
+    The captured group holds only codes and their separators, so splitting it on
+    anything that is not a digit or a dot yields the codes to parse.
+    """
+    refs: list[tuple[int, int, int, int]] = []
+    for m in PROVIDED_FOR.finditer(description or ""):
+        for token in re.split(r"[^\d.]+", m.group(1)):
+            code = parse_hts_code(token)
+            if code is not None and code not in refs:
+                refs.append(code)
     return refs
 
 
